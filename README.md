@@ -1,41 +1,104 @@
-# DealerDesk starter
+# VIKMO DealerDesk — Technical Submission
 
-A minimal Django project that already follows the run contract. It has **no models and no business logic**: designing those is the assignment.
+An enterprise B2B dealer management and order orchestration backend built with Django, Django REST Framework, and PostgreSQL.
 
-What's here:
+---
 
-- `dealerdesk/settings.py` reads `DATABASE_URL`, `SUPPLIER_API_URL`, `SUPPLIER_API_KEY` and the LLM keys (Gemini, OpenAI, Anthropic, Groq), refuses anything but PostgreSQL, and turns off authentication for the API.
-- `GET /api/health/` returns `{"status": "ok"}`.
-- `python manage.py seed_data` exists but does nothing yet.
-- `requirements.txt` with Django, DRF, the Postgres driver and `requests`. Add your LLM provider's SDK if you build the assistant.
+## 1. Features Implemented
 
-## Set up
+- **Core Catalogue & Dealers**:
+  - Full product catalogue with search, category, and vehicle fitment filtering.
+  - Manual inventory adjustments with validation.
+  - Dealer management with credit limits and GSTIN verification.
+- **Order Engine**:
+  - Daily order numbering format: `ORD-YYYYMMDD-NNNN` (Asia/Kolkata timezone).
+  - Exact paisa calculations with 18% GST rounded line-by-line using `ROUND_HALF_UP`.
+  - Concurrency-safe status flow: `DRAFT -> CONFIRMED -> DISPATCHED -> DELIVERED` or `CANCELLED`.
+  - Pessimistic locking (`select_for_update`) with deadlock-safe ordered lock acquisition.
+  - All-or-nothing stock deduction and exact one-time stock restoration on cancellation.
+  - Idempotent order placement via `Idempotency-Key` and SHA-256 payload hashing.
+- **Supplier Feed Synchronization**:
+  - Cursor-based paginated ingest with automatic retries up to 5 attempts.
+  - Respects HTTP 429 `Retry-After` headers and applies exponential backoff for transient 5xx errors.
+  - Rejects invalid pricing and deduplicates by latest `updated_at`.
+  - All-or-nothing database updates without altering local stock levels.
+- **Dealer Assistant (GenAI)**:
+  - Session-based conversational agent with multi-turn memory.
+  - Tool calling capabilities: `search_parts`, `check_stock`, `create_draft_order`.
+  - Cites only real database SKUs and creates draft orders respecting all business rules.
+- **Demand Forecasting & Reorder Suggestions (ML)**:
+  - Generates 4-week future demand forecasts in `ml/forecast.csv` using weighted trends and promotional elasticity.
+  - Real-time reorder point calculations incorporating lead times, sample standard deviation, safety stock, and live inventory.
 
-1. Copy everything in this folder into the root of your repo, next to `data/`.
-2. Get a PostgreSQL database:
-   - **Hosted, free:** create a project on neon.tech or supabase.com and copy its connection string, or
-   - **Local:** install PostgreSQL and run `createdb dealerdesk`.
-3. Copy `.env.example` to `.env` and fill in `DATABASE_URL` (and your LLM key if you build the assistant).
-4. Install and run:
+---
 
+## 2. Requirements & Setup
+
+### Prerequisites
+- Python 3.11+
+- PostgreSQL database (Local or Cloud e.g., Neon / Supabase)
+
+### Installation
+
+1. **Clone & Virtual Environment**:
+   ```bash
+   python -m venv .venv
+   # Windows PowerShell:
+   .\.venv\Scripts\Activate.ps1
+   # Linux / macOS:
+   source .venv/bin/activate
+   ```
+
+2. **Install Dependencies**:
+   ```bash
+   pip install --upgrade pip
+   pip install -r requirements.txt
+   ```
+
+3. **Configure Environment Variables**:
+   Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+   Configure your database and supplier settings:
+   ```env
+   DATABASE_URL=postgres://user:password@host:5432/dealerdesk?sslmode=require
+   SUPPLIER_API_URL=http://127.0.0.1:8099
+   SUPPLIER_API_KEY=dev-supplier-key
+   DJANGO_SECRET_KEY=dev-secret-key
+   ```
+
+4. **Migrate & Seed**:
+   ```bash
+   python manage.py migrate --noinput
+   python manage.py seed_data
+   ```
+
+---
+
+## 3. Running the Server & Mock Supplier
+
+To run the mock supplier (for testing supplier sync):
 ```bash
-python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py seed_data
+python supplier_mock/mock_supplier.py
+```
+
+To start the Django application server:
+```bash
 python manage.py runserver 0.0.0.0:8000
 ```
 
-5. Check it: `curl http://localhost:8000/api/health/` → `{"status": "ok"}`
+---
 
-## Before you submit
+## 4. Verification & Testing
 
-Reset to a fresh database, seed twice, and run the smoke test from the bundle:
-
+### Running Unit Tests
 ```bash
-python smoke_test.py --base-url http://localhost:8000 --track django   # or --track aiml
+python manage.py test core --keepdb
 ```
 
-Add new packages to `requirements.txt` as you go. The grader installs it on Linux with Python 3.11+.
-
-Docker is optional. If you add a `Dockerfile` or `docker-compose.yml` for yourself, keep the plain commands above working too: the grader uses those, not Docker.
+### Running the End-to-End Contract Smoke Test
+```bash
+# Test all components (Core, Engine, Sync, Assistant, Forecast)
+python smoke_test.py --base-url http://localhost:8000 --all
+```

@@ -82,7 +82,9 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
     "UNAUTHENTICATED_USER": None,
+    "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
 }
+
 
 # ---- Assignment settings --------------------------------------------------------------
 DATA_DIR = BASE_DIR / "data"
