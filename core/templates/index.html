@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIKMO DealerDesk — Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .tab-btn.active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 600; }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
+    <!-- Navbar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <div class="flex items-center space-x-3">
+                <span class="bg-amber-400 text-slate-900 font-extrabold px-2.5 py-1 rounded text-lg tracking-wider">VIKMO</span>
+                <span class="text-xl font-bold text-slate-900">DealerDesk</span>
+                <span class="text-xs bg-blue-100 text-blue-700 font-medium px-2 py-0.5 rounded-full">B2B Portal</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="text-sm">
+                    <span class="text-slate-500">Dealer:</span>
+                    <select id="dealerSelect" class="ml-1 font-semibold text-slate-800 bg-slate-100 border border-slate-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                </div>
+                <button onclick="switchTab('cart')" class="relative p-2 text-slate-600 hover:text-blue-600 focus:outline-none">
+                    <i class="fa-solid fa-cart-shopping text-lg"></i>
+                    <span id="cartCount" class="absolute -top-1 -right-1 bg-blue-600 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center font-bold">0</span>
+                </button>
+            </div>
+        </div>
+        <!-- Navigation Tabs -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-8 text-sm overflow-x-auto">
+            <button onclick="switchTab('catalogue')" id="tab-catalogue" class="tab-btn active py-3 px-1 border-b-2 border-transparent hover:text-blue-600 transition">
+                <i class="fa-solid fa-box mr-1.5"></i> Catalogue
+            </button>
+            <button onclick="switchTab('cart')" id="tab-cart" class="tab-btn py-3 px-1 border-b-2 border-transparent hover:text-blue-600 transition">
+                <i class="fa-solid fa-file-invoice mr-1.5"></i> Cart & Draft Order
+            </button>
+            <button onclick="switchTab('orders')" id="tab-orders" class="tab-btn py-3 px-1 border-b-2 border-transparent hover:text-blue-600 transition">
+                <i class="fa-solid fa-list-check mr-1.5"></i> Orders
+            </button>
+            <button onclick="switchTab('assistant')" id="tab-assistant" class="tab-btn py-3 px-1 border-b-2 border-transparent hover:text-blue-600 transition">
+                <i class="fa-solid fa-robot mr-1.5"></i> AI Assistant
+            </button>
+            <button onclick="switchTab('reorder')" id="tab-reorder" class="tab-btn py-3 px-1 border-b-2 border-transparent hover:text-blue-600 transition">
+                <i class="fa-solid fa-chart-line mr-1.5"></i> Reorder & Forecasts
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+        <!-- Toast Notification Area -->
+        <div id="toastArea" class="fixed bottom-5 right-5 z-50 space-y-2"></div>
+
+        <!-- 1. CATALOGUE VIEW -->
+        <section id="view-catalogue" class="space-y-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between">
+                <div class="flex-1 w-full flex flex-col sm:flex-row gap-2">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400"></i>
+                        <input type="text" id="searchInput" placeholder="Search SKU, part name, or brand..." class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <select id="categoryFilter" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <option value="">All Categories</option>
+                    </select>
+                    <input type="text" id="vehicleFilter" placeholder="Vehicle fitment (e.g. Pulsar)..." class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <button onclick="loadProducts(1)" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition">
+                    Filter Parts
+                </button>
+            </div>
+
+            <!-- Products Grid -->
+            <div id="productsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+            <!-- Pagination Controls -->
+            <div class="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <span id="paginationInfo" class="text-sm text-slate-500">Loading parts...</span>
+                <div class="space-x-2">
+                    <button id="prevPageBtn" onclick="prevPage()" class="px-3 py-1.5 border border-slate-300 rounded text-sm hover:bg-slate-50 disabled:opacity-50">Previous</button>
+                    <button id="nextPageBtn" onclick="nextPage()" class="px-3 py-1.5 border border-slate-300 rounded text-sm hover:bg-slate-50 disabled:opacity-50">Next</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. CART & DRAFT ORDER VIEW -->
+        <section id="view-cart" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center">
+                    <i class="fa-solid fa-cart-shopping mr-2 text-blue-600"></i> Active Draft Cart
+                </h2>
+                <div id="cartItemsContainer" class="space-y-3 mb-6"></div>
+
+                <div class="border-t border-slate-200 pt-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div class="space-y-1 text-sm">
+                        <p class="text-slate-600">Subtotal: <span id="cartSubtotal" class="font-bold text-slate-900">₹0.00</span></p>
+                        <p class="text-slate-600">GST (18% ROUND_HALF_UP): <span id="cartTax" class="font-bold text-slate-900">₹0.00</span></p>
+                        <p class="text-base text-slate-900">Grand Total: <span id="cartGrandTotal" class="font-extrabold text-blue-600 text-lg">₹0.00</span></p>
+                    </div>
+                    <div class="flex gap-2 w-full md:w-auto">
+                        <button onclick="clearCart()" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-100 transition">Clear Cart</button>
+                        <button onclick="submitDraftOrder()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition">Submit Draft Order</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. ORDERS VIEW -->
+        <section id="view-orders" class="hidden space-y-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                <h2 class="text-lg font-bold text-slate-900 flex items-center">
+                    <i class="fa-solid fa-list-check mr-2 text-blue-600"></i> Orders & History
+                </h2>
+                <button onclick="loadOrders()" class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition">
+                    <i class="fa-solid fa-rotate mr-1"></i> Refresh
+                </button>
+            </div>
+            <div id="ordersContainer" class="space-y-3"></div>
+        </section>
+
+        <!-- 4. DEALER ASSISTANT VIEW -->
+        <section id="view-assistant" class="hidden flex flex-col h-[700px] bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold">VIKMO Dealer Assistant</h3>
+                        <p class="text-xs text-slate-300">Ground-truth catalogue search & order assistant</p>
+                    </div>
+                </div>
+                <button onclick="resetChat()" class="text-xs text-slate-400 hover:text-white transition">New Session</button>
+            </div>
+            <div id="chatMessages" class="flex-1 p-4 overflow-y-auto space-y-4"></div>
+            <div class="p-4 border-t border-slate-200 bg-slate-50 flex gap-2">
+                <input type="text" id="chatInput" placeholder="Ask for parts, stock status, or order placement..." class="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" onkeydown="if(event.key === 'Enter') sendChatMessage()">
+                <button onclick="sendChatMessage()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- 5. REORDER & FORECAST VIEW -->
+        <section id="view-reorder" class="hidden space-y-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center">
+                        <i class="fa-solid fa-chart-line mr-2 text-blue-600"></i> Automated Reorder Engine & Demand Forecasts
+                    </h2>
+                    <p class="text-xs text-slate-500">Calculated using 4-week future demand forecasts, lead times & live inventory</p>
+                </div>
+                <button onclick="loadReorders()" class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition">
+                    <i class="fa-solid fa-rotate mr-1"></i> Refresh
+                </button>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-100 text-slate-700 text-xs font-semibold uppercase tracking-wider">
+                        <tr>
+                            <th class="py-3 px-4">SKU</th>
+                            <th class="py-3 px-4">Current Stock</th>
+                            <th class="py-3 px-4">Lead Time</th>
+                            <th class="py-3 px-4">Demand</th>
+                            <th class="py-3 px-4">Safety Stock</th>
+                            <th class="py-3 px-4">Reorder Point</th>
+                            <th class="py-3 px-4">Suggested Reorder</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reorderTableBody" class="divide-y divide-slate-200"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // State
+        let currentTab = 'catalogue';
+        let currentPage = 1;
+        let totalPages = 1;
+        let cart = {}; // sku -> { product, quantity }
+        let sessionId = 'session-' + Math.random().toString(36).substring(2, 9);
+
+        // Initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDealers();
+            loadProducts(1);
+        });
+
+        function showToast(msg, type = 'info') {
+            const area = document.getElementById('toastArea');
+            const toast = document.createElement('div');
+            const bg = type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-emerald-600' : 'bg-slate-800';
+            toast.className = `${bg} text-white px-4 py-2.5 rounded-lg shadow-lg text-sm flex items-center space-x-2 animate-bounce`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-check'}"></i> <span>${msg}</span>`;
+            area.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+            
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            currentTab = tab;
+
+            if (tab === 'cart') renderCart();
+            if (tab === 'orders') loadOrders();
+            if (tab === 'reorder') loadReorders();
+        }
+
+        async function loadDealers() {
+            try {
+                const res = await fetch('/api/dealers/');
+                const data = await res.json();
+                const sel = document.getElementById('dealerSelect');
+                sel.innerHTML = '';
+                data.results.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = `${d.dealer_code} - ${d.name} (${d.city})`;
+                    sel.appendChild(opt);
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadProducts(page = 1) {
+            currentPage = page;
+            const search = document.getElementById('searchInput').value;
+            const category = document.getElementById('categoryFilter').value;
+            const vehicle = document.getElementById('vehicleFilter').value;
+            
+            let url = `/api/products/?page=${page}&page_size=12`;
+            if (search) url += `&search=${encodeURIComponent(search)}`;
+            if (category) url += `&category=${encodeURIComponent(category)}`;
+            if (vehicle) url += `&vehicle=${encodeURIComponent(vehicle)}`;
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                renderProducts(data.results);
+
+                totalPages = Math.ceil(data.count / 12) || 1;
+                document.getElementById('paginationInfo').textContent = `Showing page ${page} of ${totalPages} (${data.count} items)`;
+                document.getElementById('prevPageBtn').disabled = (page <= 1);
+                document.getElementById('nextPageBtn').disabled = (page >= totalPages);
+
+                // Populate categories dropdown if empty
+                const catSel = document.getElementById('categoryFilter');
+                if (catSel.options.length <= 1) {
+                    const cats = [...new Set(data.results.map(p => p.category).filter(Boolean))];
+                    cats.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c;
+                        opt.textContent = c;
+                        catSel.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                showToast('Failed to load products', 'error');
+            }
+        }
+
+        function renderProducts(products) {
+            const grid = document.getElementById('productsGrid');
+            grid.innerHTML = '';
+            products.forEach(p => {
+                const inStock = p.stock > 0;
+                const card = document.createElement('div');
+                card.className = 'bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-blue-400 transition';
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-mono font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">${p.sku}</span>
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${inStock ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                                ${inStock ? `${p.stock} in stock` : 'Out of stock'}
+                            </span>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm leading-snug mb-1">${p.name}</h4>
+                        <p class="text-xs text-slate-500 mb-2">${p.brand} • ${p.category || 'General'}</p>
+                        ${p.vehicle_fitment ? `<p class="text-xs bg-slate-50 text-slate-600 px-2 py-1 rounded mb-2"><i class="fa-solid fa-motorcycle mr-1 text-slate-400"></i> ${p.vehicle_fitment}</p>` : ''}
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 flex justify-between items-center mt-2">
+                        <span class="text-base font-extrabold text-slate-900">₹${p.price}</span>
+                        <button onclick='addToCart(${JSON.stringify(p)})' class="bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 font-semibold text-xs px-3 py-1.5 rounded-lg transition">
+                            <i class="fa-solid fa-plus mr-1"></i> Add
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function prevPage() { if (currentPage > 1) loadProducts(currentPage - 1); }
+        function nextPage() { if (currentPage < totalPages) loadProducts(currentPage + 1); }
+
+        function addToCart(product) {
+            if (!cart[product.sku]) {
+                cart[product.sku] = { product: product, quantity: 1 };
+            } else {
+                cart[product.sku].quantity += 1;
+            }
+            updateCartBadge();
+            showToast(`Added ${product.name} to cart`, 'success');
+        }
+
+        function updateCartBadge() {
+            const count = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
+            document.getElementById('cartCount').textContent = count;
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cartItemsContainer');
+            container.innerHTML = '';
+            const items = Object.values(cart);
+            if (items.length === 0) {
+                container.innerHTML = '<p class="text-sm text-slate-500 py-6 text-center">Your cart is empty. Add parts from the catalogue!</p>';
+                document.getElementById('cartSubtotal').textContent = '₹0.00';
+                document.getElementById('cartTax').textContent = '₹0.00';
+                document.getElementById('cartGrandTotal').textContent = '₹0.00';
+                return;
+            }
+
+            let subtotal = 0;
+            let taxTotal = 0;
+
+            items.forEach(it => {
+                const price = parseFloat(it.product.price);
+                const lineSubtotal = Math.round(price * it.quantity * 100) / 100;
+                const lineTax = Math.round(lineSubtotal * 0.18 * 100) / 100;
+                subtotal += lineSubtotal;
+                taxTotal += lineTax;
+
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200';
+                row.innerHTML = `
+                    <div class="flex-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-mono font-bold bg-slate-200 px-1.5 py-0.5 rounded">${it.product.sku}</span>
+                            <span class="font-semibold text-sm text-slate-800">${it.product.name}</span>
+                        </div>
+                        <p class="text-xs text-slate-500">₹${it.product.price} each • Stock: ${it.product.stock}</p>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <div class="flex items-center border border-slate-300 rounded bg-white">
+                            <button onclick="changeQty('${it.product.sku}', -1)" class="px-2 py-0.5 text-slate-500 hover:text-slate-800">-</button>
+                            <span class="px-2 text-sm font-semibold">${it.quantity}</span>
+                            <button onclick="changeQty('${it.product.sku}', 1)" class="px-2 py-0.5 text-slate-500 hover:text-slate-800">+</button>
+                        </div>
+                        <span class="font-bold text-sm w-20 text-right">₹${(lineSubtotal + lineTax).toFixed(2)}</span>
+                        <button onclick="removeFromCart('${it.product.sku}')" class="text-slate-400 hover:text-rose-600"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+
+            document.getElementById('cartSubtotal').textContent = `₹${subtotal.toFixed(2)}`;
+            document.getElementById('cartTax').textContent = `₹${taxTotal.toFixed(2)}`;
+            document.getElementById('cartGrandTotal').textContent = `₹${(subtotal + taxTotal).toFixed(2)}`;
+        }
+
+        function changeQty(sku, delta) {
+            if (cart[sku]) {
+                cart[sku].quantity += delta;
+                if (cart[sku].quantity <= 0) delete cart[sku];
+                updateCartBadge();
+                renderCart();
+            }
+        }
+
+        function removeFromCart(sku) {
+            delete cart[sku];
+            updateCartBadge();
+            renderCart();
+        }
+
+        function clearCart() {
+            cart = {};
+            updateCartBadge();
+            renderCart();
+        }
+
+        async function submitDraftOrder() {
+            const items = Object.values(cart).map(it => ({ sku: it.product.sku, quantity: it.quantity }));
+            if (items.length === 0) {
+                showToast('Cart is empty', 'error');
+                return;
+            }
+            const dealerId = parseInt(document.getElementById('dealerSelect').value);
+            try {
+                const res = await fetch('/api/orders/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dealer_id: dealerId, items })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(`Draft Order ${data.order_number} created!`, 'success');
+                    clearCart();
+                    switchTab('orders');
+                } else {
+                    showToast(`Order failed: ${data.error?.message || 'Validation error'}`, 'error');
+                }
+            } catch (err) {
+                showToast('Network error creating order', 'error');
+            }
+        }
+
+        async function loadOrders() {
+            const container = document.getElementById('ordersContainer');
+            container.innerHTML = '<p class="text-sm text-slate-500 py-4 text-center">Loading orders...</p>';
+            try {
+                const res = await fetch('/api/orders/?page_size=20');
+                const data = await res.json();
+                container.innerHTML = '';
+                if (!data.results || data.results.length === 0) {
+                    container.innerHTML = '<p class="text-sm text-slate-500 py-6 text-center">No orders recorded yet.</p>';
+                    return;
+                }
+                data.results.forEach(order => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3';
+                    const statusColors = {
+                        'DRAFT': 'bg-amber-100 text-amber-800',
+                        'CONFIRMED': 'bg-blue-100 text-blue-800',
+                        'DISPATCHED': 'bg-indigo-100 text-indigo-800',
+                        'DELIVERED': 'bg-emerald-100 text-emerald-800',
+                        'CANCELLED': 'bg-rose-100 text-rose-800',
+                    };
+                    card.innerHTML = `
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-2">
+                            <div>
+                                <span class="font-mono font-bold text-slate-900">${order.order_number}</span>
+                                <span class="ml-2 text-xs text-slate-500">${new Date(order.created_at).toLocaleString()}</span>
+                            </div>
+                            <span class="mt-1 sm:mt-0 px-2.5 py-0.5 rounded-full text-xs font-bold ${statusColors[order.status] || 'bg-slate-100'}">${order.status}</span>
+                        </div>
+                        <div class="space-y-1 text-xs">
+                            ${order.items.map(it => `
+                                <div class="flex justify-between text-slate-600">
+                                    <span>${it.quantity}x ${it.name} (${it.sku})</span>
+                                    <span>₹${it.line_total}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="pt-2 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                            <div class="text-xs text-slate-500">
+                                Subtotal: ₹${order.subtotal} | GST: ₹${order.tax_total} | <strong class="text-slate-900 text-sm">Grand Total: ₹${order.grand_total}</strong>
+                            </div>
+                            <div class="space-x-1.5">
+                                ${order.status === 'DRAFT' ? `
+                                    <button onclick="orderAction('${order.order_number}', 'confirm')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-semibold">Confirm</button>
+                                    <button onclick="orderAction('${order.order_number}', 'cancel')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1 rounded text-xs">Cancel</button>
+                                ` : ''}
+                                ${order.status === 'CONFIRMED' ? `
+                                    <button onclick="orderAction('${order.order_number}', 'dispatch')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-semibold">Dispatch</button>
+                                    <button onclick="orderAction('${order.order_number}', 'cancel')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1 rounded text-xs">Cancel</button>
+                                ` : ''}
+                                ${order.status === 'DISPATCHED' ? `
+                                    <button onclick="orderAction('${order.order_number}', 'deliver')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs font-semibold">Deliver</button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                container.innerHTML = '<p class="text-sm text-red-500 py-4 text-center">Failed to load orders.</p>';
+            }
+        }
+
+        async function orderAction(orderNo, action) {
+            try {
+                const res = await fetch(`/api/orders/${orderNo}/${action}/`, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast(`Order ${orderNo} ${action}ed!`, 'success');
+                    loadOrders();
+                } else {
+                    const msg = data.error?.message || 'Action failed';
+                    showToast(`Error: ${msg}`, 'error');
+                }
+            } catch (err) {
+                showToast('Network error processing order action', 'error');
+            }
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+            input.value = '';
+
+            const chatBox = document.getElementById('chatMessages');
+            chatBox.innerHTML += `
+                <div class="flex justify-end">
+                    <div class="bg-blue-600 text-white px-4 py-2.5 rounded-2xl rounded-tr-none text-sm max-w-lg shadow-sm">
+                        ${msg}
+                    </div>
+                </div>
+            `;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            const dealerId = parseInt(document.getElementById('dealerSelect').value);
+            try {
+                const res = await fetch('/api/assistant/chat/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, dealer_id: dealerId, message: msg })
+                });
+                const data = await res.json();
+                
+                chatBox.innerHTML += `
+                    <div class="flex justify-start">
+                        <div class="bg-slate-100 text-slate-800 px-4 py-3 rounded-2xl rounded-tl-none text-sm max-w-lg shadow-sm space-y-2">
+                            <p>${data.reply}</p>
+                            ${data.cited_skus && data.cited_skus.length ? `
+                                <div class="pt-2 border-t border-slate-200 text-xs text-slate-500">
+                                    <strong>Referenced SKUs:</strong> ${data.cited_skus.join(', ')}
+                                </div>
+                            ` : ''}
+                            ${data.actions && data.actions.length ? `
+                                <div class="bg-blue-50 text-blue-800 p-2 rounded text-xs font-semibold">
+                                    <i class="fa-solid fa-bell mr-1"></i> Order Created: ${data.actions[0].order_number}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } catch (err) {
+                showToast('Failed to contact assistant', 'error');
+            }
+        }
+
+        function resetChat() {
+            sessionId = 'session-' + Math.random().toString(36).substring(2, 9);
+            document.getElementById('chatMessages').innerHTML = '<p class="text-center text-xs text-slate-400 py-4">New session started. How can I help you today?</p>';
+        }
+
+        async function loadReorders() {
+            const tbody = document.getElementById('reorderTableBody');
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-slate-500">Loading reorder suggestions...</td></tr>';
+            try {
+                const res = await fetch('/api/reorder-suggestions/');
+                const data = await res.json();
+                tbody.innerHTML = '';
+                data.results.forEach(r => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50 transition';
+                    tr.innerHTML = `
+                        <td class="py-2.5 px-4 font-mono font-bold text-slate-800">${r.sku}</td>
+                        <td class="py-2.5 px-4">${r.current_stock}</td>
+                        <td class="py-2.5 px-4">${r.lead_time_weeks} wks</td>
+                        <td class="py-2.5 px-4">${r.lead_time_demand}</td>
+                        <td class="py-2.5 px-4">${r.safety_stock}</td>
+                        <td class="py-2.5 px-4 font-semibold">${r.reorder_point}</td>
+                        <td class="py-2.5 px-4"><span class="px-2 py-0.5 rounded font-bold text-xs ${r.reorder_qty > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">${r.reorder_qty} units</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-red-500">Failed to load reorder data</td></tr>';
+            }
+        }
+    </script>
+</body>
+</html>

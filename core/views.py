@@ -27,11 +27,18 @@ from core.serializers import (
     ProductUpdateSerializer,
 )
 from core.supplier_sync import run_supplier_sync
+from django.shortcuts import render
 
 
 def health(request):
     """GET /api/health/ — the grader polls this until your app is ready."""
     return JsonResponse({"status": "ok"})
+
+
+def portal_view(request):
+    """Optional Part E — B2B Dealer Portal."""
+    return render(request, "index.html")
+
 
 
 # --------------------------------------------------------------------------------------
